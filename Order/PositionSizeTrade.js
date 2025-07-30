@@ -4,7 +4,7 @@ const moCredentials = require("../models/moCredentials");
 const getHeaders = require("../GetHeader");
 const axios = require("axios");
 
-const placeOrder = async (req, res) => {
+const PositionSizeTrade = async (req, res) => {
   try {
     const {
       client_ids,
@@ -17,6 +17,7 @@ const placeOrder = async (req, res) => {
       quantityinlot,
       ordertype,
       amoorder: rawAmoOrder,
+      position_size,
     } = req.body;
 
     const amoorder = rawAmoOrder ?? "N";
@@ -125,4 +126,4 @@ const placeOrder = async (req, res) => {
   }
 };
 
-module.exports = placeOrder;
+module.exports = PositionSizeTrade;

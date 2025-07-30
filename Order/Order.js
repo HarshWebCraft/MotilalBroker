@@ -10,6 +10,9 @@ router.post("/modify-order", require("./ModifyOrder"));
 // Cancel Order API
 router.post("/cancel-order", require("./CancelOrder"));
 
+// Exit Trade API
+router.post("/exit-Trade", require("./ExitTrade"));
+
 // Order Book API
 router.post("/order-book", require("./OrderBook"));
 
@@ -21,5 +24,8 @@ router.post("/order-detail", require("./OrderDetails"));
 
 // Trade Detail API
 router.post("/trade-detail", require("./TradeDetails"));
+
+// Position Size Detail API
+router.post("/positionsize-order", require("./PositionSizeTrade"));
 
 module.exports = router;
