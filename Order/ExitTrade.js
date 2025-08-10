@@ -11,7 +11,8 @@ const axiosInstance = axios.create({
 
 const exitPosition = async (req, res) => {
   try {
-    const { client_ids, symbol, side, producttype } = req.body;
+    const { client_ids, symbol, side, producttype, exchange, symboltoken } =
+      req.body;
 
     // Validate required fields
     if (!client_ids || !Array.isArray(client_ids) || client_ids.length === 0) {
@@ -94,11 +95,21 @@ const exitPosition = async (req, res) => {
 
         // Apply filters only if provided
         const symbolMatch = !symbol || pos.symbol === symbol;
+        const symbolTokenMatch =
+          !symboltoken || pos.symboltoken === symboltoken;
         const sideMatch = !side || positionSide === side.toUpperCase();
+        const exchangeMatch =
+          !exchange || pos.exchange === exchange.toUpperCase();
         const productTypeMatch =
           !producttype || pos.producttype === producttype;
 
-        if (symbolMatch && sideMatch && productTypeMatch) {
+        if (
+          symbolMatch &&
+          sideMatch &&
+          productTypeMatch &&
+          exchangeMatch &&
+          symbolTokenMatch
+        ) {
           const targetArray =
             positionSide === "SELL" ? sellPositions : buyPositions;
           targetArray.push({

@@ -10,7 +10,7 @@ const axiosInstance = axios.create({
 
 const CancelOrder = async (req, res) => {
   try {
-    const { client_ids, symbol, symboltoken, side, producttype } = req.body;
+    const { client_ids, symbol, side, producttype, exchange } = req.body;
 
     // Validate required fields
     if (!client_ids || !Array.isArray(client_ids) || client_ids.length === 0) {
@@ -81,19 +81,20 @@ const CancelOrder = async (req, res) => {
       openOrPendingOrders.forEach((order) => {
         // Apply filters only if provided
         const symbolMatch = !symbol || order.symbol === symbol;
-        const symbolTokenMatch =
-          !symboltoken || order.symboltoken === symboltoken;
+        // const symbolTokenMatch =
+        //   !symboltoken || order.symboltoken === symboltoken;
         const sideMatch =
           !side || order.buyorsell.toUpperCase() === side.toUpperCase();
         const productTypeMatch =
           !producttype || order.producttype === producttype;
+        const exchangeMatch = !exchange || order.exchange === exchange;
 
-        if (symbolMatch && symbolTokenMatch && sideMatch && productTypeMatch) {
+        if (symbolMatch && sideMatch && productTypeMatch && exchangeMatch) {
           ordersToCancel.push({
             client_id: result.client_id,
             uniqueorderid: order.uniqueorderid,
             symbol: order.symbol,
-            symboltoken: order.symboltoken,
+            // symboltoken: order.symboltoken,
             buyorsell: order.buyorsell,
             producttype: order.producttype,
           });
@@ -108,7 +109,7 @@ const CancelOrder = async (req, res) => {
           client_ids
         )}, filters: ${JSON.stringify({
           symbol,
-          symboltoken,
+          // symboltoken,
           side,
           producttype,
         })}`
@@ -126,7 +127,7 @@ const CancelOrder = async (req, res) => {
         client_id,
         uniqueorderid,
         symbol,
-        symboltoken,
+        // symboltoken,
         buyorsell,
         producttype,
       }) => {
@@ -136,7 +137,7 @@ const CancelOrder = async (req, res) => {
             client_id,
             uniqueorderid,
             symbol,
-            symboltoken,
+            // symboltoken,
             buyorsell,
             producttype,
             status: "ERROR",
@@ -166,7 +167,7 @@ const CancelOrder = async (req, res) => {
             client_id: cred.client_id,
             uniqueorderid,
             symbol,
-            symboltoken,
+            // symboltoken,
             buyorsell,
             producttype,
             status: response.data.status,
@@ -178,7 +179,7 @@ const CancelOrder = async (req, res) => {
             client_id: cred.client_id,
             uniqueorderid,
             symbol,
-            symboltoken,
+            // symboltoken,
             buyorsell,
             producttype,
             status: "ERROR",

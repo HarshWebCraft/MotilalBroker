@@ -16,10 +16,9 @@ const placeOrder = async (req, res) => {
       price,
       quantityinlot,
       ordertype,
-      amoorder: rawAmoOrder,
+      amoorder,
     } = req.body;
 
-    const amoorder = rawAmoOrder ?? "N";
     // Validate required fields
     if (!client_ids || !Array.isArray(client_ids) || client_ids.length === 0) {
       return res.status(400).json({
