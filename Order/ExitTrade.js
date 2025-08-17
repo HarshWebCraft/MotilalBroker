@@ -3,11 +3,22 @@ const ClientCredentials = mongoose.model("moCredentials");
 const getHeaders = require("../GetHeader");
 const axios = require("axios");
 const placeOrder = require("./PlaceOrder");
+const parse = require("csv-parse/sync");
 
 const axiosInstance = axios.create({
   timeout: 10000,
   headers: { "Content-Type": "application/json" },
 });
+
+async function getLotSize(symbol) {
+  // Zerodha publishes contract master here:
+  const url = "https://api.kite.trade/instruments";
+  const resp = await axios.get(url);
+
+  const records = parse.parse(resp.data, { columns: true });
+  const result = records.find((r) => r.exchange_token === symbol);
+  return result ? result.lot_size : "Symbol not found";
+}
 
 const exitPosition = async (req, res) => {
   try {
@@ -145,6 +156,8 @@ const exitPosition = async (req, res) => {
         const netQty = position.buyquantity - position.sellquantity;
         const orderSide = netQty > 0 ? "SELL" : "BUY";
         const quantity = Math.abs(netQty);
+        const lotSize = await getLotSize(position.symboltoken);
+        const lotsToClose = quantity / lotSize;
 
         const payload = {
           client_ids: [client_id],
@@ -155,7 +168,7 @@ const exitPosition = async (req, res) => {
           producttype: position.productname || "NORMAL",
           orderduration: "DAY",
           price: 0.0,
-          quantityinlot: quantity / (position.lotsize || 1),
+          quantityinlot: lotsToClose,
           amoorder: "N",
           tag: `CLOSE`,
         };
