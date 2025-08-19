@@ -16,7 +16,7 @@ async function getLotSize(symbol) {
   const resp = await axios.get(url);
 
   const records = parse.parse(resp.data, { columns: true });
-  const result = records.find((r) => r.exchange_token === symbol);
+  const result = records.find((r) => r.exchange_token == symbol);
   return result ? result.lot_size : "Symbol not found";
 }
 
