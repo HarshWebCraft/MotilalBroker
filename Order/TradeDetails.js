@@ -1,11 +1,11 @@
-const axios = require('axios');
-const getHeaders = require('../GetHeader');
+const axios = require("axios");
+const getHeaders = require("../GetHeader");
 
 const TradeDetails = async (req, res) => {
   try {
     const requestData = {
-      clientcode: req.body.clientcode || "",
-      uniqueorderid: req.body.uniqueorderid || "2700002AA020",
+      clientcode: req.body.clientcode,
+      uniqueorderid: req.body.uniqueorderid,
     };
 
     console.log(

@@ -65,6 +65,7 @@ const placeOrder = async (req, res) => {
 
     // Create parallel requests for each client
     const orderPromises = credentials.map(async (cred) => {
+      const clientIndex = client_ids.indexOf(cred.client_id);
       const orderData = {
         clientcode: cred.client_id,
         exchange,
@@ -73,7 +74,7 @@ const placeOrder = async (req, res) => {
         producttype,
         orderduration,
         price,
-        quantityinlot,
+        quantityinlot: quantityinlot[clientIndex],
         ordertype,
         amoorder,
       };
