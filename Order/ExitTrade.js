@@ -168,7 +168,7 @@ const exitPosition = async (req, res) => {
           producttype: position.productname || "NORMAL",
           orderduration: "DAY",
           price: 0.0,
-          quantityinlot: lotsToClose,
+          quantityinlot: [lotsToClose],
           amoorder: "N",
           tag: `CLOSE`,
         };
