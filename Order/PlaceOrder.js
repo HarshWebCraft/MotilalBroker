@@ -3,6 +3,10 @@ const moCredentials = require("../models/moCredentials");
 const getHeaders = require("../GetHeader");
 const axios = require("axios");
 const axiosRetry = require("axios-retry").default;
+const dns = require("dns");
+
+dns.setServers(["8.8.8.8", "8.8.4.4"]); // Google DNS
+dns.setDefaultResultOrder("ipv4first");
 
 // Configure axios-retry
 axiosRetry(axios, {
