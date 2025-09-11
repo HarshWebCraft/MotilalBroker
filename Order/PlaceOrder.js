@@ -4,8 +4,11 @@ const getHeaders = require("../GetHeader");
 const axios = require("axios");
 const axiosRetry = require("axios-retry").default;
 const dns = require("dns");
+const https = require("https");
 
-dns.setServers(["8.8.8.8", "8.8.4.4"]); // Google DNS
+const agent = new https.Agent({ keepAlive: true });
+
+dns.setServers(["1.1.1.1", "8.8.8.8", "8.8.4.4"]); // Google DNS
 dns.setDefaultResultOrder("ipv4first");
 
 // Configure axios-retry
@@ -106,7 +109,7 @@ const placeOrder = async (req, res) => {
         ...(price !== undefined && price !== null
           ? { price: parseFloat(price) }
           : {}),
-        quantityinlot: quantityinlot[clientIndex],
+        quantityinlot: parseFloat(quantityinlot[clientIndex]),
         ordertype,
         amoorder,
       };
@@ -117,7 +120,7 @@ const placeOrder = async (req, res) => {
         const response = await axios.post(
           "https://openapi.motilaloswal.com/rest/trans/v1/placeorder",
           orderData,
-          { headers }
+          { headers, httpsAgent: agent }
         );
         return {
           client_id: cred.client_id,

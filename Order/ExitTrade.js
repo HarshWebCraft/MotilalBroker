@@ -5,6 +5,10 @@ const axios = require("axios");
 const axiosRetry = require("axios-retry").default;
 const parse = require("csv-parse/sync");
 
+const https = require("https");
+
+const agent = new https.Agent({ keepAlive: true });
+
 const axiosInstance = axios.create({
   headers: { "Content-Type": "application/json" }, // Removed timeout
 });
@@ -78,7 +82,7 @@ const exitPosition = async (req, res) => {
         const response = await axiosInstance.post(
           "https://openapi.motilaloswal.com/rest/book/v1/getposition",
           { clientcode: cred.client_id },
-          { headers }
+          { headers, httpsAgent: agent }
         );
         return {
           client_id: cred.client_id,
