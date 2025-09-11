@@ -7,14 +7,26 @@ const axiosRetry = require("axios-retry").default;
 // Configure axios-retry
 axiosRetry(axios, {
   retries: 3, // Retry up to 3 times
-  retryDelay: () => 500,
+  retryDelay: (retryCount, error) => {
+    console.log(
+      `Retry attempt #${retryCount} for ${error?.config?.url} - reason: ${error?.message}`
+    );
+    return 500; // wait 500ms between retries
+  },
   retryCondition: (error) => {
     // Retry on network errors or specific error codes
-    return (
+    const shouldRetry =
       axiosRetry.isNetworkOrIdempotentRequestError(error) ||
       error.code === "EAI_AGAIN" ||
-      error.message.includes("getaddrinfo EAI_AGAIN")
-    );
+      error.message.includes("getaddrinfo EAI_AGAIN");
+
+    if (shouldRetry) {
+      console.log(
+        `Request failed for ${error?.config?.url}, will retry: ${error.message}`
+      );
+    }
+
+    return shouldRetry;
   },
 });
 
