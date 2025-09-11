@@ -5,9 +5,11 @@ const Services = require("./Services/Service");
 const bodyParser = require("body-parser");
 const Websocket = require("./WebSocket/websocket");
 const mongoose = require("mongoose");
+const cors = require("cors");
 
 require("dotenv").config();
 app.use(bodyParser.json());
+app.use(cors());
 
 mongoose
   .connect(`${process.env.MongoUrl}`)

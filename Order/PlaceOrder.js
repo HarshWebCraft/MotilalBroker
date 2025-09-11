@@ -1,8 +1,22 @@
-const mongoose = require("mongoose");
 const moCredentials = require("../models/moCredentials");
 
 const getHeaders = require("../GetHeader");
 const axios = require("axios");
+const axiosRetry = require("axios-retry").default;
+
+// Configure axios-retry
+axiosRetry(axios, {
+  retries: 3, // Retry up to 3 times
+  retryDelay: () => 500,
+  retryCondition: (error) => {
+    // Retry on network errors or specific error codes
+    return (
+      axiosRetry.isNetworkOrIdempotentRequestError(error) ||
+      error.code === "EAI_AGAIN" ||
+      error.message.includes("getaddrinfo EAI_AGAIN")
+    );
+  },
+});
 
 const placeOrder = async (req, res) => {
   try {
@@ -73,17 +87,15 @@ const placeOrder = async (req, res) => {
         buyorsell,
         producttype,
         orderduration,
-        price,
+        ...(price !== undefined && price !== null
+          ? { price: parseFloat(price) }
+          : {}),
         quantityinlot: quantityinlot[clientIndex],
         ordertype,
         amoorder,
       };
       console.log("orderData", orderData);
-      const headers = getHeaders(
-        cred.auth_token,
-        cred.apiKey,
-        cred.client_id // Assuming vendorinfo is client_id
-      );
+      const headers = getHeaders(cred.auth_token, cred.apiKey, cred.client_id);
 
       try {
         const response = await axios.post(

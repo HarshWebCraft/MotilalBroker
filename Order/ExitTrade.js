@@ -2,19 +2,30 @@ const mongoose = require("mongoose");
 const ClientCredentials = mongoose.model("moCredentials");
 const getHeaders = require("../GetHeader");
 const axios = require("axios");
-const placeOrder = require("./PlaceOrder");
+const axiosRetry = require("axios-retry").default;
 const parse = require("csv-parse/sync");
 
 const axiosInstance = axios.create({
-  timeout: 10000,
-  headers: { "Content-Type": "application/json" },
+  headers: { "Content-Type": "application/json" }, // Removed timeout
+});
+
+// Configure axios-retry for network errors
+axiosRetry(axiosInstance, {
+  retries: 3,
+  retryDelay: () => 500, // Delays of 1s, 2s, 3s
+  retryCondition: (error) => {
+    return (
+      axiosRetry.isNetworkOrIdempotentRequestError(error) ||
+      error.code === "EAI_AGAIN" ||
+      error.message.includes("getaddrinfo EAI_AGAIN") ||
+      error.code === "ECONNREFUSED"
+    );
+  },
 });
 
 async function getLotSize(symbol) {
-  // Zerodha publishes contract master here:
   const url = "https://api.kite.trade/instruments";
   const resp = await axios.get(url);
-
   const records = parse.parse(resp.data, { columns: true });
   const result = records.find((r) => r.exchange_token == symbol);
   return result ? result.lot_size : "Symbol not found";
@@ -35,6 +46,7 @@ const exitPosition = async (req, res) => {
       });
     }
     console.log(client_ids);
+
     // Fetch credentials for all client_ids
     const credentials = await ClientCredentials.find({
       client_id: { $in: client_ids },
@@ -214,7 +226,6 @@ const exitPosition = async (req, res) => {
 
     // Execute all close requests in parallel
     const closedPositions = await Promise.all(closePromises);
-    // console.log(closedPositions);
     // Log results
     const successfulCloses = closedPositions.filter(
       (result) => result.status === "SUCCESS"
