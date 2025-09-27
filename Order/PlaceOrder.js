@@ -51,6 +51,7 @@ const placeOrder = async (req, res) => {
       ordertype,
       amoorder,
     } = req.body;
+    const t1 = Date.now();
 
     // Validate required fields
     if (!client_ids || !Array.isArray(client_ids) || client_ids.length === 0) {
@@ -141,7 +142,9 @@ const placeOrder = async (req, res) => {
 
     // Execute all requests in parallel
     const results = await Promise.all(orderPromises);
-
+    const t2 = Date.now();
+    const apiLatency = t2 - t1;
+    console.log(`API latency (Motilal placeOrder) : ${apiLatency} ms`);
     // Log results
     console.log("Place Order Responses:", JSON.stringify(results, null, 2));
 
