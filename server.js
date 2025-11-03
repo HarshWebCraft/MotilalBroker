@@ -9,7 +9,12 @@ const cors = require("cors");
 
 require("dotenv").config();
 app.use(bodyParser.json());
-app.use(cors());
+app.use(
+  cors({
+    origin: "https://xalgos.in", // ✅ only allow your live domain
+    credentials: true, // ✅ allow cookies / auth headers
+  })
+);
 
 mongoose
   .connect(`${process.env.MongoUrl}`)
