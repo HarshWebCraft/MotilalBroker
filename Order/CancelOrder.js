@@ -104,20 +104,17 @@ const CancelOrder = async (req, res) => {
     console.log("Orders to cancel:", JSON.stringify(ordersToCancel, null, 2));
 
     if (!ordersToCancel.length) {
-      console.log(
-        `No open or pending orders to cancel for client_ids: ${JSON.stringify(
-          client_ids
-        )}, filters: ${JSON.stringify({
-          symbol,
-          // symboltoken,
-          side,
-          producttype,
-        })}`
-      );
+      const response = client_ids.map((client_id) => ({
+        client_id,
+        status: "SUCCESS",
+        message: "No open or pending orders to cancel",
+        errorcode: "",
+      }));
+
       return res.status(200).json({
         status: "SUCCESS",
         message: "No open or pending orders to cancel",
-        response: [],
+        response,
       });
     }
 
