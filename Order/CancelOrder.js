@@ -104,18 +104,15 @@ const CancelOrder = async (req, res) => {
     console.log("Orders to cancel:", JSON.stringify(ordersToCancel, null, 2));
 
     if (!ordersToCancel.length) {
-      const response = client_ids.map((client_id) => ({
+      const results = client_ids.map((client_id) => ({
         client_id,
         status: "SUCCESS",
         message: "No open or pending orders to cancel",
         errorcode: "",
+        uniqueorderid: "",
       }));
 
-      return res.status(200).json({
-        status: "SUCCESS",
-        message: "No open or pending orders to cancel",
-        response,
-      });
+      return res.status(200).json(results);
     }
 
     // Create parallel cancel requests for each client and order ID
