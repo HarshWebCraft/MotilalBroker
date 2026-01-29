@@ -24,6 +24,7 @@ router.post("/order-detail", require("./OrderDetails"));
 
 // Trade Detail API
 router.post("/trade-detail", require("./TradeDetails"));
+router.post("/getAllPositions", require("./getAllPositions"));
 
 // Position Size Detail API
 router.post("/positionsize-order", require("./PositionSizeTrade"));
