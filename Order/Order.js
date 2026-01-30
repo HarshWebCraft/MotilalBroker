@@ -32,4 +32,6 @@ router.post("/positionsize-order", require("./PositionSizeTrade"));
 
 router.post("/auto-strick-price", require("./AutoStrikePrice.js"));
 
+router.post("/cancel-single-order", require("./cancelSingleOrder"));
+
 module.exports = router;
