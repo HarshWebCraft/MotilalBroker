@@ -140,6 +140,8 @@ const placeOrder = async (req, res) => {
       amoorder,
       closeOpenPostion,
 
+      
+
       // Auto-strike required fields (Option A)
       symbol, // e.g. NIFTY
       expiry, // e.g. 09Dec2025 or ISO date
