@@ -11,9 +11,9 @@ require("dotenv").config();
 app.use(bodyParser.json());
 app.use(
   cors({
-    origin: "https://xalgos.in", // ✅ only allow your live domain
+    origin: ["https://xalgos.in", "http://localhost:3000"], // ✅ only allow your live domain
     credentials: true, // ✅ allow cookies / auth headers
-  })
+  }),
 );
 
 mongoose
