@@ -67,11 +67,17 @@ const getAllPositions = async (req, res) => {
           { headers, httpsAgent: agent },
         );
 
+        const filteredPositions = (response.data.data || []).filter((pos) => {
+          const buyQty = Number(pos.daybuyquantity || 0);
+          const sellQty = Number(pos.daysellquantity || 0);
+          return buyQty - sellQty !== 0;
+        });
+
         return {
           client_id: cred.client_id,
           status: response.data.status,
           message: response.data.message,
-          positions: response.data.data || [],
+          positions: filteredPositions,
         };
       } catch (error) {
         return {

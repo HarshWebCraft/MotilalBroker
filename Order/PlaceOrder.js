@@ -16,7 +16,7 @@ axiosRetry(axios, {
   retries: 3, // Retry up to 3 times
   retryDelay: (retryCount, error) => {
     console.log(
-      `Retry attempt #${retryCount} for ${error?.config?.url} - reason: ${error?.message}`
+      `Retry attempt #${retryCount} for ${error?.config?.url} - reason: ${error?.message}`,
     );
     return 500; // wait 500ms between retries
   },
@@ -29,7 +29,7 @@ axiosRetry(axios, {
 
     if (shouldRetry) {
       console.log(
-        `Request failed for ${error?.config?.url}, will retry: ${error.message}`
+        `Request failed for ${error?.config?.url}, will retry: ${error.message}`,
       );
     }
 
@@ -85,13 +85,13 @@ const placeOrder = async (req, res) => {
 
     // Check if credentials were found for all client_ids
     const missingClients = client_ids.filter(
-      (id) => !credentials.find((cred) => cred.client_id === id)
+      (id) => !credentials.find((cred) => cred.client_id === id),
     );
     if (missingClients.length > 0) {
       return res.status(400).json({
         status: "ERROR",
         message: `No credentials found for client IDs: ${missingClients.join(
-          ", "
+          ", ",
         )}`,
         errorcode: "MO8003",
       });
@@ -121,7 +121,7 @@ const placeOrder = async (req, res) => {
         const response = await axios.post(
           "https://openapi.motilaloswal.com/rest/trans/v1/placeorder",
           orderData,
-          { headers, httpsAgent: agent }
+          { headers, httpsAgent: agent },
         );
         return {
           client_id: cred.client_id,
