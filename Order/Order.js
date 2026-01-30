@@ -29,4 +29,6 @@ router.post("/getAllPositions", require("./getAllPositions"));
 // Position Size Detail API
 router.post("/positionsize-order", require("./PositionSizeTrade"));
 
+router.post("/auto-strick-price", require("./AutoStrikePrice.js"));
+
 module.exports = router;
