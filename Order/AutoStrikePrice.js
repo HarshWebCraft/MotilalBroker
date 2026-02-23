@@ -7,6 +7,9 @@ const dns = require("dns");
 const https = require("https");
 const agent = new https.Agent({ keepAlive: true });
 
+const fs = require("fs");
+const path = require("path");
+
 // DNS tweak (as you had)
 dns.setServers(["1.1.1.1", "8.8.8.8", "8.8.4.4"]);
 dns.setDefaultResultOrder("ipv4first");
@@ -16,7 +19,7 @@ axiosRetry(axios, {
   retries: 3,
   retryDelay: (retryCount, error) => {
     console.log(
-      `Retry attempt #${retryCount} for ${error?.config?.url} - reason: ${error?.message}`
+      `Retry attempt #${retryCount} for ${error?.config?.url} - reason: ${error?.message}`,
     );
     return 500;
   },
@@ -28,98 +31,13 @@ axiosRetry(axios, {
 
     if (shouldRetry) {
       console.log(
-        `Request failed for ${error?.config?.url}, will retry: ${error.message}`
+        `Request failed for ${error?.config?.url}, will retry: ${error.message}`,
       );
     }
 
     return shouldRetry;
   },
 });
-
-// ----------------------
-// JAINAM TOKEN HELPERS
-// ----------------------
-function mapExchangeAndSeries(exchange, instrument) {
-  // exchange expected like "NFO", "BFO", "MCX"
-  if (exchange === "NFO") {
-    if (instrument === "INDEX") return { exchangeSegment: 2, series: "OPTIDX" };
-    return { exchangeSegment: 2, series: "OPTSTK" };
-  }
-  if (exchange === "BFO") {
-    if (instrument === "INDEX") return { exchangeSegment: 12, series: "IO" };
-    return { exchangeSegment: 12, series: "SO" };
-  }
-  if (exchange === "MCX") {
-    return { exchangeSegment: 51, series: "OPTFUT" };
-  }
-  throw new Error(`Unsupported exchange: ${exchange}`);
-}
-
-function formatExpiry(raw) {
-  if (!raw) return raw;
-  raw = String(raw).trim();
-  // If already in 09Dec2025 format
-  if (/^\d{2}[A-Z][a-z]{2}\d{4}$/.test(raw)) return raw;
-  const d = new Date(raw);
-  if (isNaN(d)) return raw;
-  const day = String(d.getDate()).padStart(2, "0");
-  const year = d.getFullYear();
-  const monthNames = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-  const mon = monthNames[d.getMonth()];
-  return `${day}${mon}${year}`;
-}
-
-async function getJainamToken(
-  symbol,
-  expiry,
-  strikePrice,
-  optionType,
-  exchange,
-  instrument
-) {
-  const { exchangeSegment, series } = mapExchangeAndSeries(
-    exchange,
-    instrument
-  );
-  const formattedExpiry = formatExpiry(expiry);
-
-  const url =
-    `https://developers.symphonyfintech.in/apimarketdata/instruments/instrument/optionSymbol` +
-    `?exchangeSegment=${exchangeSegment}` +
-    `&series=${series}` +
-    `&symbol=${encodeURIComponent(symbol)}` +
-    `&expiryDate=${formattedExpiry}` +
-    `&optionType=${optionType}` +
-    `&strikePrice=${strikePrice}`;
-
-  const res = await axios.get(url);
-  // Expected shape: { type:'success', result: [ { ExchangeInstrumentID, Description, ... } ] }
-  const item = res.data?.result?.[0];
-  if (!item) {
-    // include some debug info if available
-    const dbg = res.data || {};
-    const msg = `No matching instrument found from Jainam: ${JSON.stringify(
-      dbg
-    )}`;
-    const e = new Error(msg);
-    e._jainamResponse = dbg;
-    throw e;
-  }
-  return item; // full object returned
-}
 
 // ----------------------
 // Motilal placeOrder Controller
@@ -139,9 +57,6 @@ const placeOrder = async (req, res) => {
       ordertype,
       amoorder,
       closeOpenPostion,
-
-      
-
       // Auto-strike required fields (Option A)
       symbol, // e.g. NIFTY
       expiry, // e.g. 09Dec2025 or ISO date
@@ -151,6 +66,8 @@ const placeOrder = async (req, res) => {
       cepe, // "CE" or "PE"
       aio, // "ATM" or "ITM1" or "OTM2" etc
     } = req.body;
+
+    console.log("req.body auto", req.body);
 
     const t1 = Date.now();
 
@@ -163,39 +80,6 @@ const placeOrder = async (req, res) => {
       });
     }
 
-    // Validate Motilal required fields
-    if (
-      !exchange ||
-      !buyorsell ||
-      !producttype ||
-      !orderduration ||
-      !quantityinlot
-    ) {
-      return res.status(400).json({
-        status: "ERROR",
-        message: "Missing required order fields",
-        errorcode: "MO8002",
-      });
-    }
-
-    // Validate auto-strike fields (Option A)
-    if (
-      !symbol ||
-      !expiry ||
-      gap === undefined ||
-      close === undefined ||
-      !instrument ||
-      !cepe ||
-      !aio
-    ) {
-      return res.status(400).json({
-        status: "ERROR",
-        message:
-          "Missing fields for strike price & token generation. Required: symbol, expiry, gap, close, instrument, cepe, aio",
-        errorcode: "MO7001",
-      });
-    }
-
     // Calculate strike price (same logic as your AngelOne flow)
     const gapNum = parseFloat(gap);
     if (isNaN(gapNum) || gapNum <= 0) {
@@ -205,6 +89,7 @@ const placeOrder = async (req, res) => {
         errorcode: "MO7004",
       });
     }
+
     const closePrice = parseFloat(close);
     if (isNaN(closePrice)) {
       return res.status(400).json({
@@ -214,116 +99,107 @@ const placeOrder = async (req, res) => {
       });
     }
 
-    if (closeOpenPostion) {
+    if (closeOpenPostion === "YES") {
       console.log("Closing positions before placing new order...");
 
-      const exitResults = [];
-
-      // Fetch credentials first (already done later in code, so reuse the query)
       const creds = await moCredentials
         .find({ client_id: { $in: client_ids } })
         .lean();
 
-      for (const cred of creds) {
-        const headers = getHeaders(
-          cred.auth_token,
-          cred.apiKey,
-          cred.client_id
-        );
-
-        // 1. Fetch user position book
-        let positionResp;
+      const exitPromises = creds.map(async (cred) => {
         try {
-          positionResp = await axios.post(
+          const headers = getHeaders(
+            cred.auth_token,
+            cred.apiKey,
+            cred.client_id,
+          );
+
+          const positionResp = await axios.post(
             "https://openapi.motilaloswal.com/rest/book/v1/getposition",
             { clientcode: cred.client_id },
-            { headers, httpsAgent: agent }
+            { headers, httpsAgent: agent },
           );
-        } catch (err) {
-          exitResults.push({
-            client_id: cred.client_id,
-            status: "ERROR",
-            message: "Failed fetching position book",
-          });
-          continue;
-        }
 
-        const positions = positionResp.data?.data || [];
-        const openPositions = positions.filter(
-          (p) => p.buyquantity !== p.sellquantity
-        );
+          const positions = positionResp.data?.data || [];
 
-        // 2. Loop open positions → close symbol match
-        for (const pos of openPositions) {
-          if (
-            !req.body.tradingsymbol ||
-            !req.body.tradingsymbol.includes(pos.symbol)
-          ) {
-            continue; // skip non-matching symbols
-          }
+          const openPositions = positions.filter(
+            (p) => p.buyquantity !== p.sellquantity,
+          );
 
-          const netQty = pos.buyquantity - pos.sellquantity;
-          const side = netQty > 0 ? "SELL" : "BUY";
-          const qty = Math.abs(netQty);
+          const targetUnderlying = String(req.body.symbol).toUpperCase().trim();
 
-          // Get lot size (same as exit file)
-          let lotSize = 1;
-          try {
-            const kiteResp = await axios.get(
-              "https://api.kite.trade/instruments"
-            );
-            const csv = require("csv-parse/sync").parse;
-            const rec = csv(kiteResp.data, { columns: true });
-            const row = rec.find((r) => r.exchange_token == pos.symboltoken);
-            lotSize = row ? Number(row.lot_size) : 1;
-          } catch (err) {
-            console.log("Lot-size lookup failed, using 1");
-          }
+          const closePositionPromises = openPositions
+            .filter((pos) => {
+              if (!pos.symbol) return false;
 
-          const lots = qty / lotSize;
+              const posUnderlying = pos.symbol
+                .toUpperCase()
+                .split(" ")[0]
+                .trim();
 
-          const payload = {
-            client_ids: [cred.client_id],
-            exchange: pos.exchange,
-            symboltoken: pos.symboltoken,
-            buyorsell: side,
-            ordertype: "MARKET",
-            producttype: pos.productname || "NORMAL",
-            orderduration: "DAY",
-            price: 0,
-            quantityinlot: [lots],
-            amoorder: "N",
-            tag: "AUTO-EXIT",
-          };
+              return posUnderlying === targetUnderlying;
+            })
+            .map(async (pos) => {
+              try {
+                const netQty = pos.buyquantity - pos.sellquantity;
+                const side = netQty > 0 ? "SELL" : "BUY";
+                const qty = Math.abs(netQty);
 
-          // 3. Place exit order
-          try {
-            const resp = await axios.post(
-              `http://localhost:${process.env.PORT}/place-order`,
-              payload
-            );
+                const payload = {
+                  client_ids: [cred.client_id],
+                  exchange: pos.exchange,
+                  symboltoken: pos.symboltoken,
+                  buyorsell: side,
+                  ordertype: "MARKET",
+                  producttype: pos.productname || "NORMAL",
+                  orderduration: "DAY",
+                  price: 0,
+                  quantityinlot: [qty],
+                  amoorder: "N",
+                  tag: "AUTO-EXIT",
+                };
 
-            const r =
-              resp.data.find((x) => x.client_id === cred.client_id) || {};
+                const resp = await axios.post(
+                  `http://localhost:${process.env.PORT}/place-order`,
+                  payload,
+                );
 
-            exitResults.push({
-              client_id: cred.client_id,
-              status: r.status || "UNKNOWN",
-              message: r.message || "",
-              symbol: pos.symbol,
-              exitSide: side,
-              qty,
+                const r =
+                  resp.data.find((x) => x.client_id === cred.client_id) || {};
+
+                return {
+                  client_id: cred.client_id,
+                  status: r.status || "UNKNOWN",
+                  message: r.message || "",
+                  symbol: pos.symbol,
+                  exitSide: side,
+                  qty,
+                };
+              } catch (err) {
+                return {
+                  client_id: cred.client_id,
+                  status: "ERROR",
+                  message: err.message,
+                  symbol: pos.symbol,
+                };
+              }
             });
-          } catch (err) {
-            exitResults.push({
+
+          return Promise.all(closePositionPromises);
+        } catch (err) {
+          return [
+            {
               client_id: cred.client_id,
               status: "ERROR",
-              message: err.message,
-              symbol: pos.symbol,
-            });
-          }
+              message: "Failed fetching position book",
+            },
+          ];
         }
-      }
+      });
+
+      const exitResultsNested = await Promise.all(exitPromises);
+
+      const exitResults = exitResultsNested.flat();
 
       console.log("Exit Position Results:", exitResults);
     }
@@ -331,21 +207,19 @@ const placeOrder = async (req, res) => {
     const roundedClose = Math.round(closePrice / gapNum) * gapNum;
     let strikePrice = roundedClose;
 
-    const aioMatch = String(aio).match(/(ITM|OTM)(\d+)|^ATM$/i);
-    if (!aioMatch) {
-      return res.status(400).json({
-        status: "ERROR",
-        message: "Invalid AIO value. Use ATM, ITM1, OTM3, etc.",
-        errorcode: "MO7002",
-      });
-    }
+    console.log("strikePrice", strikePrice);
+
+    const aioMatch = aio.match(/(ITM|OTM)(\d+)|ATM/i);
 
     if (String(aio).toUpperCase() !== "ATM") {
       const [, type, digitStr] = aioMatch;
       const digit = parseInt(digitStr, 10) || 0;
-      if (type && type.toUpperCase() === "ITM") strikePrice -= gapNum * digit;
-      else if (type && type.toUpperCase() === "OTM")
-        strikePrice += gapNum * digit;
+
+      if (cepe === "CE") {
+        strikePrice += (type.toUpperCase() === "ITM" ? -1 : 1) * gapNum * digit;
+      } else {
+        strikePrice += (type.toUpperCase() === "ITM" ? 1 : -1) * gapNum * digit;
+      }
     }
 
     if (strikePrice <= 0) {
@@ -356,40 +230,88 @@ const placeOrder = async (req, res) => {
       });
     }
 
-    // Fetch Jainam token for final ExchangeInstrumentID
-    let jainamItem;
-    try {
-      jainamItem = await getJainamToken(
-        symbol,
-        expiry,
-        strikePrice,
-        cepe, // CE / PE
-        exchange, // NFO / BFO / MCX
-        instrument // INDEX / STOCK
-      );
+    function formatTradingSymbol(symbol, expiry, strikePrice, cepe, exchange) {
+      const day = expiry.slice(0, 2);
+      const mon = expiry.slice(2, 5).toUpperCase();
+      const year = expiry.slice(7, 9);
 
-      console.log("Jainam matched item:", jainamItem);
+      const formattedExpiry = `${day}${mon}${year}`;
+
+      const formattedStrike =
+        exchange === "MCX"
+          ? Number(strikePrice)
+          : Number(strikePrice).toFixed(2);
+
+      return `${symbol}${formattedExpiry}${formattedStrike}${cepe}`;
+    }
+
+    function getTokenFromLocalJSON(tradingSymbol, exchange) {
+      console.log("tradingSymbol, exchange", tradingSymbol, exchange);
+
+      const fileMap = {
+        NSEFO: "nse_fo.json",
+        BSEFO: "bse_fo.json",
+        MCX: "mcx_fo.json",
+      };
+
+      const fileName = fileMap[exchange.toUpperCase()];
+      if (!fileName) {
+        throw new Error(`Unsupported exchange: ${exchange}`);
+      }
+
+      const filePath = path.join(__dirname, "../data", fileName);
+
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`Scrip master file not found: ${fileName}`);
+      }
+
+      const records = JSON.parse(fs.readFileSync(filePath, "utf8"));
+
+      const match = records.find((r) => r.pTrdSymbol === tradingSymbol);
+
+      if (!match) {
+        throw new Error("No matching instrument found in local scrip master");
+      }
+
+      console.log("match", match);
+
+      return match.pSymbol; // symboltoken
+    }
+
+    // Fetch Jainam token for final ExchangeInstrumentID
+    // Build trading symbol
+    const tradingSymbol = formatTradingSymbol(
+      symbol,
+      expiry,
+      strikePrice,
+      cepe,
+      exchange,
+    );
+
+    console.log("Calculated Trading Symbol:", tradingSymbol);
+
+    // Fetch token from local JSON
+    let finaltoken;
+
+    try {
+      finaltoken = getTokenFromLocalJSON(tradingSymbol, exchange);
+      req.body.tradingsymbol = tradingSymbol;
     } catch (err) {
-      console.error("Jainam token fetch error:", err.message || err);
-      // Build per-client error results (consistent shape)
+      console.error("Local token fetch error:", err.message);
+
       const results = client_ids.map((cid) => ({
         client_id: cid,
         status: "ERROR",
-        message: "Failed to fetch token from Jainam",
+        message: "Failed to fetch token from local scrip master",
         errorcode: "MO7003",
         uniqueorderid: "",
       }));
+
       return res.status(400).json({
         status: "ERROR",
         results,
       });
     }
-
-    // Override symboltoken and optionally set tradingsymbol
-    // jainamItem.ExchangeInstrumentID is the token, Description or DisplayName can be used for tradingsymbol
-    const finaltoken = String(jainamItem.ExchangeInstrumentID);
-    req.body.tradingsymbol =
-      jainamItem.Description || jainamItem.DisplayName || jainamItem.Name || "";
 
     // ------------- Continue with original Motilal flow -------------
     // Fetch credentials for all client_ids
@@ -398,13 +320,13 @@ const placeOrder = async (req, res) => {
       .lean();
 
     const missingClients = client_ids.filter(
-      (id) => !credentials.find((cred) => cred.client_id === id)
+      (id) => !credentials.find((cred) => cred.client_id === id),
     );
     if (missingClients.length > 0) {
       return res.status(400).json({
         status: "ERROR",
         message: `No credentials found for client IDs: ${missingClients.join(
-          ", "
+          ", ",
         )}`,
         errorcode: "MO8003",
       });
@@ -434,7 +356,7 @@ const placeOrder = async (req, res) => {
         clientcode: cred.client_id,
         exchange,
         // Use the overridden symboltoken
-        symboltoken: finaltoken,
+        symboltoken: parseInt(finaltoken),
         buyorsell,
         producttype,
         orderduration,
@@ -443,7 +365,8 @@ const placeOrder = async (req, res) => {
           : {}),
         quantityinlot: qty,
         ordertype,
-        amoorder,
+        price: price ? price : 0,
+        amoorder: "N",
       };
 
       console.log("orderData", orderData);
@@ -453,7 +376,7 @@ const placeOrder = async (req, res) => {
         const response = await axios.post(
           "https://openapi.motilaloswal.com/rest/trans/v1/placeorder",
           orderData,
-          { headers, httpsAgent: agent }
+          { headers, httpsAgent: agent },
         );
 
         return {
@@ -466,7 +389,7 @@ const placeOrder = async (req, res) => {
       } catch (error) {
         console.error(
           `Motilal order failed for client ${cred.client_id}:`,
-          error?.message || error
+          error?.message || error,
         );
         return {
           client_id: cred.client_id,

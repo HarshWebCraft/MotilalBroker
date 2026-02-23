@@ -3,9 +3,12 @@ const app = express();
 const Order = require("./Order/Order");
 const Services = require("./Services/Service");
 const bodyParser = require("body-parser");
+const cron = require("node-cron");
+
 // const Websocket = require("./WebSocket/websocket");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const runScripMasterJob = require("./script");
 
 require("dotenv").config();
 app.use(bodyParser.json());
@@ -34,6 +37,20 @@ app.post("/login", require("./auth/login"));
 app.use(Order);
 
 app.use(Services);
+
+cron.schedule(
+  // "* * * * *",
+  "0 6 * * *",
+  async () => {
+    try {
+      await runScripMasterJob();
+      await forwardWebhookText("Motilal Script Job Completed ✅");
+    } catch (err) {
+      console.error("❌ Cron failure:", err.message);
+    }
+  },
+  { timezone: timeZone },
+);
 
 // app.use(Websocket)
 
