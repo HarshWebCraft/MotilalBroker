@@ -38,6 +38,8 @@ app.use(Order);
 
 app.use(Services);
 
+const TIMEZONE = "Asia/Kolkata";
+
 cron.schedule(
   // "* * * * *",
   "0 6 * * *",
@@ -49,7 +51,7 @@ cron.schedule(
       console.error("❌ Cron failure:", err.message);
     }
   },
-  { timezone: timeZone },
+  { timezone: TIMEZONE },
 );
 
 // app.use(Websocket)
