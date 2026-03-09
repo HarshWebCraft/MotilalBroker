@@ -70,8 +70,6 @@ const getAllOrders = async (req, res) => {
 
         const allOrders = response.data?.data || [];
 
-        console.log("allOrders", allOrders);
-
         // ✅ Filter running / pending orders
         const runningOrders = allOrders.filter((order) => {
           const status = order.orderstatus?.toLowerCase();
