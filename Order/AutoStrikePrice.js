@@ -65,6 +65,7 @@ const placeOrder = async (req, res) => {
       instrument, // "INDEX" or "STOCK" etc
       cepe, // "CE" or "PE"
       aio, // "ATM" or "ITM1" or "OTM2" etc
+      LotSize,
     } = req.body;
 
     console.log("req.body auto", req.body);
@@ -148,7 +149,7 @@ const placeOrder = async (req, res) => {
               try {
                 const netQty = pos.buyquantity - pos.sellquantity;
                 const side = netQty > 0 ? "SELL" : "BUY";
-                const qty = Math.abs(netQty);
+                const qty = Math.abs(netQty) / LotSize;
 
                 const payload = {
                   client_ids: [cred.client_id],
