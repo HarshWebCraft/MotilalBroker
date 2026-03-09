@@ -249,8 +249,8 @@ const placeOrder = async (req, res) => {
       console.log("tradingSymbol, exchange", tradingSymbol, exchange);
 
       const fileMap = {
-        NFO: "nse_fo.json",
-        BFO: "bse_fo.json",
+        NSEFO: "nse_fo.json",
+        BSEFO: "bse_fo.json",
         MCX: "mcx_fo.json",
       };
 
