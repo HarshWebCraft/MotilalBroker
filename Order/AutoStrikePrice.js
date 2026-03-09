@@ -121,14 +121,14 @@ const placeOrder = async (req, res) => {
           );
 
           const positions = positionResp.data?.data || [];
-          
+
           const openPositions = positions.filter(
             (p) => p.buyquantity !== p.sellquantity,
           );
-          
-          console.log("Closing position with payload:", process.env.PORT);
+
           console.log("openPositions", openPositions);
-          
+
+          console.log("Closing position with payload:", process.env.PORT);
           const targetUnderlying = String(req.body.symbol).toUpperCase().trim();
 
           console.log("targetUnderlying", targetUnderlying);

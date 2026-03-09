@@ -67,7 +67,6 @@ async function processExchange(exchange) {
       .on("data", (row) => {
         let pSymbol = null;
         let pTrdSymbol = null;
-
         if (exchange === "mcx_fo") {
           // MCX specific
           pSymbol = row.pSymbol?.trim(); // GOLD / SILVER / etc
@@ -75,10 +74,12 @@ async function processExchange(exchange) {
             row.pTrdSymbol?.trim() ||
             row.pSymbolName?.trim() ||
             row.pInstrumentInfo?.trim(); // fallback
+          lotsize = row.iLotSize;
         } else {
           // NSE / BSE
           pSymbol = row.pSymbol?.trim();
           pTrdSymbol = row.pScripRefKey?.trim();
+          lotsize = row.iLotSize;
         }
 
         if (!pSymbol || !pTrdSymbol) return;
@@ -89,6 +90,7 @@ async function processExchange(exchange) {
         };
 
         if (row.pOptionType) record.pOptionType = row.pOptionType.trim();
+        if (row.iLotSize) record.iLotSize = parseInt(row.iLotSize.trim());
 
         if (row.lExpiryDate) {
           record.pExpiryDate = dayjs
@@ -145,5 +147,5 @@ cron.schedule(
 );
 
 // ---------- OPTIONAL: run once on startup ----------
-// runScripMasterJob().catch(console.error);
+runScripMasterJob().catch(console.error);
 module.exports = runScripMasterJob;
