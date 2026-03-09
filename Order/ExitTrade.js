@@ -40,6 +40,8 @@ const exitPosition = async (req, res) => {
     const { client_ids, symbol, side, producttype, exchange, symboltoken } =
       req.body;
 
+    console.log("Exit Position Request:", req.body);
+
     // Validate required fields
     if (!client_ids || !Array.isArray(client_ids) || client_ids.length === 0) {
       return res.status(400).json({
@@ -58,13 +60,13 @@ const exitPosition = async (req, res) => {
 
     // Check if credentials were found for all client_ids
     const missingClients = client_ids.filter(
-      (id) => !credentials.find((cred) => cred.client_id === id)
+      (id) => !credentials.find((cred) => cred.client_id === id),
     );
     if (missingClients.length > 0) {
       return res.status(400).json({
         status: "ERROR",
         message: `No credentials found for client IDs: ${missingClients.join(
-          ", "
+          ", ",
         )}`,
         errorcode: "MO8003",
         closedPositions: [],
@@ -77,12 +79,12 @@ const exitPosition = async (req, res) => {
         const headers = getHeaders(
           cred.auth_token,
           cred.apiKey,
-          cred.client_id
+          cred.client_id,
         );
         const response = await axiosInstance.post(
           "https://openapi.motilaloswal.com/rest/book/v1/getposition",
           { clientcode: cred.client_id },
-          { headers, httpsAgent: agent }
+          { headers, httpsAgent: agent },
         );
         return {
           client_id: cred.client_id,
@@ -94,7 +96,7 @@ const exitPosition = async (req, res) => {
         };
       } catch (error) {
         console.error(
-          `Error fetching position book for client_id: ${cred.client_id}: ${error.message}`
+          `Error fetching position book for client_id: ${cred.client_id}: ${error.message}`,
         );
         return {
           client_id: cred.client_id,
@@ -113,7 +115,7 @@ const exitPosition = async (req, res) => {
       if (result.error || result.status !== "SUCCESS") return;
 
       const openPositions = result.positions.filter(
-        (pos) => pos.buyquantity !== pos.sellquantity
+        (pos) => pos.buyquantity !== pos.sellquantity,
       );
 
       openPositions.forEach((pos) => {
@@ -155,8 +157,8 @@ const exitPosition = async (req, res) => {
     if (!positionsToClose.length) {
       console.log(
         `No open positions to close for client_ids: ${JSON.stringify(
-          client_ids
-        )}, filters: ${JSON.stringify({ symbol, side, producttype })}`
+          client_ids,
+        )}, filters: ${JSON.stringify({ symbol, side, producttype })}`,
       );
       return res.status(200).json({
         status: "SUCCESS",
@@ -193,10 +195,10 @@ const exitPosition = async (req, res) => {
         try {
           const response = await axiosInstance.post(
             `http://localhost:${process.env.PORT}/place-order`,
-            payload
+            payload,
           );
           const orderResult = response.data.find(
-            (r) => r.client_id === client_id
+            (r) => r.client_id === client_id,
           ) || {
             status: "ERROR",
             message: "No response for client_id",
@@ -225,19 +227,19 @@ const exitPosition = async (req, res) => {
             errorcode: error.response?.data?.errorcode || "MO8000",
           };
         }
-      }
+      },
     );
 
     // Execute all close requests in parallel
     const closedPositions = await Promise.all(closePromises);
     // Log results
     const successfulCloses = closedPositions.filter(
-      (result) => result.status === "SUCCESS"
+      (result) => result.status === "SUCCESS",
     );
     console.log(
       `Closed ${successfulCloses.length} out of ${
         positionsToClose.length
-      } open positions for client_ids: ${JSON.stringify(client_ids)}`
+      } open positions for client_ids: ${JSON.stringify(client_ids)}`,
     );
 
     res.json({
