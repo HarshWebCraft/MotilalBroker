@@ -9,7 +9,7 @@ const OrderBook = async (req, res) => {
 
     console.log(
       "Order Book Request Data:",
-      JSON.stringify(requestData, null, 2)
+      JSON.stringify(requestData, null, 2),
     );
 
     const response = await axios.post(
@@ -17,11 +17,11 @@ const OrderBook = async (req, res) => {
       requestData,
       {
         headers: getHeaders(
-          req.body.Authorization,
-          req.body.ApiKey,
-          req.body.clientcode
+          "a0073ba28bf7497eaf0e153292f71cc1_M",
+          "MlcFqPbIHboh6tzy",
+          req.body.clientcode,
         ),
-      }
+      },
     );
 
     console.log("Order Book Response:", JSON.stringify(response.data, null, 2));

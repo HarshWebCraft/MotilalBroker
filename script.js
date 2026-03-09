@@ -145,5 +145,5 @@ cron.schedule(
 );
 
 // ---------- OPTIONAL: run once on startup ----------
-runScripMasterJob().catch(console.error);
+// runScripMasterJob().catch(console.error);
 module.exports = runScripMasterJob;

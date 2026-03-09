@@ -56,7 +56,7 @@ const placeOrder = async (req, res) => {
       quantityinlot,
       ordertype,
       amoorder,
-      closeOpenPostion,
+      close_prev,
       // Auto-strike required fields (Option A)
       symbol, // e.g. NIFTY
       expiry, // e.g. 09Dec2025 or ISO date
@@ -99,7 +99,7 @@ const placeOrder = async (req, res) => {
       });
     }
 
-    if (closeOpenPostion === "YES") {
+    if (close_prev === "YES") {
       console.log("Closing positions before placing new order...");
 
       const creds = await moCredentials
@@ -121,12 +121,17 @@ const placeOrder = async (req, res) => {
           );
 
           const positions = positionResp.data?.data || [];
-
+          
           const openPositions = positions.filter(
             (p) => p.buyquantity !== p.sellquantity,
           );
-
+          
+          console.log("Closing position with payload:", process.env.PORT);
+          console.log("openPositions", openPositions);
+          
           const targetUnderlying = String(req.body.symbol).toUpperCase().trim();
+
+          console.log("targetUnderlying", targetUnderlying);
 
           const closePositionPromises = openPositions
             .filter((pos) => {
@@ -158,6 +163,8 @@ const placeOrder = async (req, res) => {
                   amoorder: "N",
                   tag: "AUTO-EXIT",
                 };
+
+                console.log("Closing position with payload:", payload);
 
                 const resp = await axios.post(
                   `http://localhost:${process.env.PORT}/place-order`,
