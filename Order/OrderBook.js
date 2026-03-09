@@ -1,24 +1,27 @@
 const axios = require("axios");
 const getHeaders = require("../GetHeader");
+const mongoose = require("mongoose");
+const ClientCredentials = mongoose.model("moCredentials");
 
 const OrderBook = async (req, res) => {
   try {
-    const requestData = {
-      clientcode: req.body.clientcode || "",
-    };
+    const { clientcode } = req.body;
 
-    console.log(
-      "Order Book Request Data:",
-      JSON.stringify(requestData, null, 2),
-    );
+    const credentials = await ClientCredentials.find({
+      client_id: { $in: clientcode },
+    }).lean();
+
+    console.log("Fetched Credentials:", credentials);
 
     const response = await axios.post(
       `https://openapi.motilaloswal.com/rest/book/v2/getorderbook`,
-      requestData,
+      JSON.stringify({
+        clientcode: req.body.clientcode,
+      }),
       {
         headers: getHeaders(
-          "a0073ba28bf7497eaf0e153292f71cc1_M",
-          "MlcFqPbIHboh6tzy",
+          credentials[0].auth_token,
+          credentials[0].apiKey,
           req.body.clientcode,
         ),
       },
