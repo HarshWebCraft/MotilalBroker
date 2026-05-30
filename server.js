@@ -33,6 +33,7 @@ app.use(express.json());
 app.get("/health", (req, res) => res.json("Running"));
 
 app.post("/login", require("./auth/login"));
+app.get("/searchSymbol", require("./searchSymbol"));
 
 app.use(Order);
 
@@ -58,6 +59,6 @@ cron.schedule(
 
 // Start the server
 app.listen(process.env.PORT, () => {
-  runScripMasterJob()
+  runScripMasterJob();
   console.log(`Server running on port ${process.env.PORT}`);
 });
