@@ -33,7 +33,7 @@ app.use(express.json());
 app.get("/health", (req, res) => res.json("Running"));
 
 app.post("/login", require("./auth/login"));
-app.get("/searchSymbol", require("./searchSymbol"));
+app.post("/searchSymbol", require("./searchSymbol"));
 
 app.use(Order);
 
