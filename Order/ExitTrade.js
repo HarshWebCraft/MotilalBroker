@@ -27,12 +27,42 @@ axiosRetry(axiosInstance, {
   },
 });
 
+const fs = require("fs");
+const path = require("path");
+
+const NSE_FO = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "../data/nse_fo.json"), "utf8"),
+);
+
+const BSE_FO = JSON.parse(
+  fs.readFileSync(path.join(__dirname, "../data/bse_fo.json"), "utf8"),
+);
+
 async function getLotSize(symbol) {
   const url = "https://api.kite.trade/instruments";
   const resp = await axios.get(url);
   const records = parse.parse(resp.data, { columns: true });
   const result = records.find((r) => r.exchange_token == symbol);
   return result ? result.lot_size : "Symbol not found";
+}
+
+async function getLotSizeFast(symboltoken, exchange) {
+  let dataset;
+
+  if (exchange === "NSEFO") dataset = NSE_FO;
+  else if (exchange === "BSEFO") dataset = BSE_FO;
+  else return getLotSize(symboltoken); // fallback
+
+  const record = dataset.find(
+    (item) => String(item.pSymbol) === String(symboltoken),
+  );
+
+  if (record) {
+    return record.iLotSize;
+  }
+
+  // fallback if not found
+  return getLotSize(symboltoken);
 }
 
 const exitPosition = async (req, res) => {
@@ -174,7 +204,10 @@ const exitPosition = async (req, res) => {
         const netQty = position.buyquantity - position.sellquantity;
         const orderSide = netQty > 0 ? "SELL" : "BUY";
         const quantity = Math.abs(netQty);
-        const lotSize = await getLotSize(position.symboltoken);
+        const lotSize = await getLotSizeFast(
+          position.symboltoken,
+          position.exchange,
+        );
         const lotsToClose = quantity / lotSize;
 
         const payload = {
