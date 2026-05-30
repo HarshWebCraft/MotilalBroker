@@ -30,14 +30,47 @@ axiosRetry(axiosInstance, {
 const fs = require("fs");
 const path = require("path");
 
-const NSE_FO = JSON.parse(
-  fs.readFileSync(path.join(__dirname, "../data/nse_fo.json"), "utf8"),
-);
+const NSE_FO_PATH = path.join(__dirname, "../data/nse_fo.json");
+const BSE_FO_PATH = path.join(__dirname, "../data/bse_fo.json");
 
-const BSE_FO = JSON.parse(
-  fs.readFileSync(path.join(__dirname, "../data/bse_fo.json"), "utf8"),
-);
+let NSE_FO = [];
+let BSE_FO = [];
 
+function loadJsonFile(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) {
+      console.log(`Waiting for file: ${filePath}`);
+      return [];
+    }
+
+    const data = fs.readFileSync(filePath, "utf8");
+
+    if (!data || data.trim() === "") {
+      console.log(`Empty file: ${filePath}`);
+      return [];
+    }
+
+    return JSON.parse(data);
+  } catch (err) {
+    console.log(`Error loading ${filePath}:`, err.message);
+    return [];
+  }
+}
+
+function loadMasterFiles() {
+  NSE_FO = loadJsonFile(NSE_FO_PATH);
+  BSE_FO = loadJsonFile(BSE_FO_PATH);
+
+  console.log("Master files loaded");
+  console.log("NSE_FO:", NSE_FO.length);
+  console.log("BSE_FO:", BSE_FO.length);
+}
+
+// initial load
+loadMasterFiles();
+
+// reload every 30 sec
+setInterval(loadMasterFiles, 30000);
 async function getLotSize(symbol) {
   const url = "https://api.kite.trade/instruments";
   const resp = await axios.get(url);

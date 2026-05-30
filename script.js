@@ -1,8 +1,7 @@
 /**
  * Kotak Scrip Master Cron Job
- * Runs daily @ 6:00 AM IST
- * Downloads all exchange CSVs
- * Stores PURE JSON files (no JS syntax)
+ * Downloads ALL exchanges
+ * Saves normalized JSON files
  */
 
 const axios = require("axios");
@@ -11,29 +10,165 @@ const fs = require("fs");
 const path = require("path");
 const cron = require("node-cron");
 const dayjs = require("dayjs");
+
 const forwardWebhookText = require("./forwardWebhookText");
 
 const TIMEZONE = "Asia/Kolkata";
+
 const DATA_DIR = path.join(__dirname, "./data");
 
-const EXCHANGES = ["nse_fo", "bse_fo", "mcx_fo"];
+// ---------------------------------------------------
+// ALL EXCHANGES
+// ---------------------------------------------------
 
-// Ensure data directory exists
+const EXCHANGES = [
+  "nse_cm",
+  "bse_cm",
+  "nse_fo",
+  "bse_fo",
+  "mcx_fo",
+  "ncdex_fo",
+  "cds_fo",
+];
+
+// ---------------------------------------------------
+// FILE NAMES
+// ---------------------------------------------------
+
+const FILE_NAME_MAP = {
+  nse_cm: "nse_cm",
+  bse_cm: "bse_cm",
+  nse_fo: "nse_fo",
+  bse_fo: "bse_fo",
+  mcx_fo: "mcx_fo",
+  ncdex_fo: "ncdex_fo",
+  cds_fo: "CDS",
+};
+
+// ---------------------------------------------------
+// CREATE DATA DIR
+// ---------------------------------------------------
+
 if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.mkdirSync(DATA_DIR, {
+    recursive: true,
+  });
 }
 
-// ---------- Helpers ----------
+// ---------------------------------------------------
+// DOWNLOAD CSV
+// ---------------------------------------------------
 
 async function downloadCSV(date, exchange) {
   const url = `https://lapi.kotaksecurities.com/wso2-scripmaster/v1/prod/${date}/transformed/${exchange}.csv`;
-  return axios.get(url, { responseType: "stream", timeout: 20000 });
+
+  return axios.get(url, {
+    responseType: "stream",
+    timeout: 30000,
+  });
 }
 
-// ---------- Core Logic ----------
+// ---------------------------------------------------
+// NORMALIZE ROW
+// ---------------------------------------------------
+
+function normalizeRow(row, exchange) {
+  let exchangeName = FILE_NAME_MAP[exchange];
+
+  // ---------------------------------------------------
+  // TRADING SYMBOL
+  // ---------------------------------------------------
+
+  const tradingsymbol =
+    row.pTrdSymbol?.trim() ||
+    row.pScripRefKey?.trim() ||
+    row.pSymbolName?.trim() ||
+    row.pInstrumentInfo?.trim();
+
+  if (!tradingsymbol) {
+    return null;
+  }
+
+  // ---------------------------------------------------
+  // NAME
+  // ---------------------------------------------------
+
+  const name = row.pSymbol?.trim() || row.pSymbolName?.trim() || tradingsymbol;
+
+  const record = {
+    exchange: exchangeName,
+    name,
+    tradingsymbol,
+  };
+
+  // ---------------------------------------------------
+  // TOKEN
+  // ---------------------------------------------------
+
+  if (row.pScripCode) {
+    record.token = Number(row.pScripCode);
+  }
+
+  // ---------------------------------------------------
+  // LOT SIZE
+  // ---------------------------------------------------
+
+  if (row.iLotSize) {
+    record.lot_size = Number(row.iLotSize);
+  }
+
+  // ---------------------------------------------------
+  // OPTION TYPE
+  // ---------------------------------------------------
+
+  if (row.pOptionType) {
+    record.instrument_type = row.pOptionType.trim();
+  }
+
+  // ---------------------------------------------------
+  // STRIKE
+  // ---------------------------------------------------
+
+  if (row.dStrikePrice && row.dStrikePrice !== "") {
+    record.strike = Number(row.dStrikePrice);
+  }
+
+  // ---------------------------------------------------
+  // EXPIRY
+  // ---------------------------------------------------
+
+  if (row.lExpiryDate && row.lExpiryDate !== "0") {
+    record.expiry = dayjs
+      .unix(Number(row.lExpiryDate))
+      .format("DDMMMYYYY")
+      .toUpperCase();
+  }
+
+  // ---------------------------------------------------
+  // FREEZE QTY
+  // ---------------------------------------------------
+
+  if (row.lFreezeQty) {
+    record.freeze_qty = Number(row.lFreezeQty);
+  }
+
+  // ---------------------------------------------------
+  // SERIES
+  // ---------------------------------------------------
+
+  if (row.pSeries) {
+    record.series = row.pSeries.trim();
+  }
+
+  return record;
+}
+
+// ---------------------------------------------------
+// PROCESS EXCHANGE
+// ---------------------------------------------------
 
 async function processExchange(exchange) {
-  console.log(`🔄 Processing ${exchange}`);
+  console.log(`\n🔄 Processing ${exchange}`);
 
   const datesToTry = [
     dayjs().format("YYYY-MM-DD"),
@@ -44,18 +179,22 @@ async function processExchange(exchange) {
 
   for (const date of datesToTry) {
     try {
-      console.log(`🔍 Trying date ${date} for ${exchange}`);
+      console.log(`🔍 Trying ${date}`);
+
       const res = await downloadCSV(date, exchange);
+
       stream = res.data;
-      console.log(`✅ ${exchange} CSV found for ${date}`);
+
+      console.log(`✅ CSV Found (${date})`);
+
       break;
     } catch (err) {
-      console.log(`❌ ${exchange} not available for ${date}`);
+      console.log(`❌ Not available (${date})`);
     }
   }
 
   if (!stream) {
-    console.log(`⚠️ Skipping ${exchange}, CSV unavailable`);
+    console.log(`⚠️ Skipping ${exchange}`);
     return;
   }
 
@@ -65,87 +204,90 @@ async function processExchange(exchange) {
     stream
       .pipe(csv())
       .on("data", (row) => {
-        let pSymbol = null;
-        let pTrdSymbol = null;
-        if (exchange === "mcx_fo") {
-          // MCX specific
-          pSymbol = row.pSymbol?.trim(); // GOLD / SILVER / etc
-          pTrdSymbol =
-            row.pTrdSymbol?.trim() ||
-            row.pSymbolName?.trim() ||
-            row.pInstrumentInfo?.trim(); // fallback
-          lotsize = row.iLotSize;
-        } else {
-          // NSE / BSE
-          pSymbol = row.pSymbol?.trim();
-          pTrdSymbol = row.pScripRefKey?.trim();
-          lotsize = row.iLotSize;
-        }
+        try {
+          const record = normalizeRow(row, exchange);
 
-        if (!pSymbol || !pTrdSymbol) return;
-
-        const record = {
-          pSymbol,
-          pTrdSymbol,
-        };
-
-        if (row.pOptionType) record.pOptionType = row.pOptionType.trim();
-        if (row.iLotSize) record.iLotSize = parseInt(row.iLotSize.trim());
-
-        if (row.lExpiryDate) {
-          record.pExpiryDate = dayjs
-            .unix(Number(row.lExpiryDate))
-            .format("DDMMMYYYY");
-        }
-
-        if (row.dStrikePrice && row.dStrikePrice !== "") {
-          record.dStrikePrice = Number(row.dStrikePrice);
-        }
-
-        if (row.lFreezeQty) {
-          record.lFreezeQty = Number(row.lFreezeQty);
-        }
-
-        records.push(record);
+          if (record) {
+            records.push(record);
+          }
+        } catch (err) {}
       })
-
       .on("end", resolve)
       .on("error", reject);
   });
 
-  const filePath = path.join(DATA_DIR, `${exchange}.json`);
+  // ---------------------------------------------------
+  // REMOVE DUPLICATES
+  // ---------------------------------------------------
 
-  fs.writeFileSync(filePath, JSON.stringify(records, null, 2), "utf8");
+  const unique = [];
 
-  console.log(`📁 Saved ${records.length} records → ${exchange}.json`);
-}
+  const seen = new Set();
 
-async function runScripMasterJob() {
-  console.log("⏰ motilal Scrip Master Job START");
+  for (const item of records) {
+    const key = `${item.exchange}_${item.tradingsymbol}`;
 
-  for (const exchange of EXCHANGES) {
-    await processExchange(exchange);
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(item);
+    }
   }
 
-  await forwardWebhookText(`motilal Script Job Completed ✅`);
-  console.log("✅ motilal Scrip Master Job DONE");
+  // ---------------------------------------------------
+  // SAVE FILE
+  // ---------------------------------------------------
+
+  const fileName = FILE_NAME_MAP[exchange];
+
+  const filePath = path.join(DATA_DIR, `${fileName}.json`);
+
+  fs.writeFileSync(filePath, JSON.stringify(unique, null, 2), "utf8");
+
+  console.log(`📁 Saved ${unique.length} → ${fileName}.json`);
 }
 
-// ---------- CRON (6 AM IST) ----------
+// ---------------------------------------------------
+// MAIN JOB
+// ---------------------------------------------------
+
+async function runScripMasterJob() {
+  console.log("\n⏰ Kotak Master Script Job START\n");
+
+  for (const exchange of EXCHANGES) {
+    try {
+      await processExchange(exchange);
+    } catch (err) {
+      console.log(`❌ ${exchange} failed -> ${err.message}`);
+    }
+  }
+
+  console.log("\n✅ All Exchanges Completed\n");
+
+  await forwardWebhookText(`Kotak Master Script Updated ✅`);
+}
+
+// ---------------------------------------------------
+// CRON
+// ---------------------------------------------------
 
 cron.schedule(
-  // "* * * * *",
   "0 6 * * *",
   async () => {
     try {
       await runScripMasterJob();
     } catch (err) {
-      console.error("❌ Cron failure:", err.message);
+      console.log("❌ Cron Error:", err.message);
     }
   },
-  { timezone: TIMEZONE },
+  {
+    timezone: TIMEZONE,
+  },
 );
 
-// ---------- OPTIONAL: run once on startup ----------
+// ---------------------------------------------------
+// OPTIONAL STARTUP RUN
+// ---------------------------------------------------
+
 // runScripMasterJob().catch(console.error);
+
 module.exports = runScripMasterJob;

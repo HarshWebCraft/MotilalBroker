@@ -58,5 +58,6 @@ cron.schedule(
 
 // Start the server
 app.listen(process.env.PORT, () => {
+  runScripMasterJob()
   console.log(`Server running on port ${process.env.PORT}`);
 });
