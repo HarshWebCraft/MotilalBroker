@@ -21,8 +21,10 @@ function maskSecret(value) {
 function safeHeaders(headers) {
   return {
     ...headers,
-    Authorization: headers.Authorization,
-    ApiKey: headers.ApiKey,
+    Authorization: maskSecret(headers.Authorization),
+    accesstoken: maskSecret(headers.accesstoken),
+    ApiKey: maskSecret(headers.ApiKey),
+    apisecretkey: maskSecret(headers.apisecretkey),
   };
 }
 
@@ -121,6 +123,7 @@ const placeOrder = async (req, res) => {
     const orderPromises = credentials.map(async (cred) => {
       const clientIndex = client_ids.indexOf(cred.client_id);
       const orderData = {
+        clientcode: "",
         exchange,
         symboltoken,
         buyorsell,
@@ -132,13 +135,27 @@ const placeOrder = async (req, res) => {
         quantityinlot: parseFloat(quantityinlot[clientIndex]),
         ordertype,
         amoorder,
+        triggerprice: 0,
+        disclosedquantity: 0,
+        algoid: "",
+        goodtilldate: "",
+        tag: "XLAGO",
       };
       console.log("orderData", orderData);
+      const accessToken = cred.accesstoken || cred.access_token;
+      const apiSecret = cred.apisecretkey || cred.apiSecret;
+      if (!accessToken || !apiSecret) {
+        throw new Error(
+          `Missing ${!accessToken ? "accesstoken" : "apisecretkey"} for ${cred.client_id}`,
+        );
+      }
       const headers = getHeaders(
         cred.auth_token,
         cred.apiKey,
         cred.client_id,
         cred.ip,
+        apiSecret,
+        accessToken,
       );
 
       try {

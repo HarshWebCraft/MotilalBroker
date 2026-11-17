@@ -13,6 +13,18 @@ const moCredentialsSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    apisecretkey: {
+      type: String,
+      trim: true,
+    },
+    accesstoken: {
+      type: String,
+      trim: true,
+    },
+    access_token: {
+      type: String,
+      trim: true,
+    },
     auth_token: {
       type: String,
       required: true,
