@@ -142,15 +142,15 @@ const placeOrder = async (req, res) => {
         tag: "XLAGO",
       };
       console.log("orderData", orderData);
-      const accessToken = cred.auth_token || cred.access_token;
-      const apiSecret = cred.apisecretkey || cred.apiSecret;
-      if (!accessToken || !apiSecret) {
+      const accessToken = cred.auth_token;
+      const apiSecret = cred.apisecretkey;
+      if (!cred.auth_code || !accessToken || !apiSecret) {
         throw new Error(
-          `Missing ${!accessToken ? "accesstoken" : "apisecretkey"} for ${cred.client_id}`,
+          `Missing ${!cred.auth_code ? "auth_code" : !accessToken ? "auth_token" : "apisecretkey"} for ${cred.client_id}`,
         );
       }
       const headers = getHeaders(
-        cred.auth_token,
+        cred.auth_code,
         cred.apiKey,
         cred.client_id,
         cred.ip,
