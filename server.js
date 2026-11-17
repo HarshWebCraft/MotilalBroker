@@ -1,3 +1,5 @@
+require("./config/consoleTimestamp");
+
 const express = require("express");
 const app = express();
 const Order = require("./Order/Order");

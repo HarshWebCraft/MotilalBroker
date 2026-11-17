@@ -4,6 +4,8 @@
  * Saves normalized JSON files
  */
 
+require("./config/consoleTimestamp");
+
 const axios = require("axios");
 const csv = require("csv-parser");
 const fs = require("fs");
