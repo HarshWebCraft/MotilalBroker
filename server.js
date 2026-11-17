@@ -11,6 +11,7 @@ const cron = require("node-cron");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const runScripMasterJob = require("./script");
+const exitTrade = require("./Order/ExitTrade");
 
 require("dotenv").config();
 app.use(bodyParser.json());
@@ -43,13 +44,17 @@ app.use(Services);
 
 const TIMEZONE = "Asia/Kolkata";
 
+async function updateScripMaster() {
+  await runScripMasterJob();
+  exitTrade.reloadMasterFiles();
+}
+
 cron.schedule(
   // "* * * * *",
   "0 6 * * *",
   async () => {
     try {
-      await runScripMasterJob();
-      await forwardWebhookText("Motilal Script Job Completed ✅");
+      await updateScripMaster();
     } catch (err) {
       console.error("❌ Cron failure:", err.message);
     }
@@ -61,6 +66,8 @@ cron.schedule(
 
 // Start the server
 app.listen(process.env.PORT, () => {
-  runScripMasterJob();
+  updateScripMaster().catch((err) => {
+    console.error("Initial scrip master update failed:", err.message);
+  });
   console.log(`Server running on port ${process.env.PORT}`);
 });

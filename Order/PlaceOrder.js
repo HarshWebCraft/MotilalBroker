@@ -8,6 +8,23 @@ const https = require("https");
 const { getProxyAgent } = require("../proxyRouter");
 
 const agent = new https.Agent({ keepAlive: true });
+const PLACE_ORDER_URL =
+  "https://openapi.motilaloswal.com/rest/trans/v2/placeorder";
+
+function maskSecret(value) {
+  if (!value) return "<missing>";
+  const secret = String(value);
+  if (secret.length <= 8) return "<redacted>";
+  return `${secret.slice(0, 4)}...${secret.slice(-4)}`;
+}
+
+function safeHeaders(headers) {
+  return {
+    ...headers,
+    Authorization: maskSecret(headers.Authorization),
+    ApiKey: maskSecret(headers.ApiKey),
+  };
+}
 
 dns.setServers(["1.1.1.1", "8.8.8.8", "8.8.4.4"]); // Google DNS
 dns.setDefaultResultOrder("ipv4first");
@@ -132,8 +149,13 @@ const placeOrder = async (req, res) => {
             `[Motilal] placing ${cred.client_id} order via Server ${proxyRoute.serverNo} proxy for ${cred.ip}`,
           );
         }
+        console.log("Motilal place-order request:", {
+          url: PLACE_ORDER_URL,
+          headers: safeHeaders(headers),
+          body: orderData,
+        });
         const response = await axios.post(
-          "https://openapi.motilaloswal.com/rest/trans/v1/placeorder",
+          PLACE_ORDER_URL,
           orderData,
           {
             headers,
@@ -149,6 +171,12 @@ const placeOrder = async (req, res) => {
           uniqueorderid: response.data.uniqueorderid || "",
         };
       } catch (error) {
+        console.error("Motilal place-order failed:", {
+          client_id: cred.client_id,
+          status: error.response?.status,
+          response: error.response?.data,
+          message: error.message,
+        });
         return {
           client_id: cred.client_id,
           status: "ERROR",

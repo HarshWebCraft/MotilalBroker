@@ -272,7 +272,7 @@ async function runScripMasterJob() {
 // CRON
 // ---------------------------------------------------
 
-cron.schedule(
+if (require.main === module) cron.schedule(
   "0 6 * * *",
   async () => {
     try {

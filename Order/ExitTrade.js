@@ -70,8 +70,6 @@ function loadMasterFiles() {
 // initial load
 loadMasterFiles();
 
-// reload every 30 sec
-setInterval(loadMasterFiles, 30000);
 async function getLotSize(symbol) {
   const url = "https://api.kite.trade/instruments";
   const resp = await axios.get(url);
@@ -337,3 +335,4 @@ const exitPosition = async (req, res) => {
 };
 
 module.exports = exitPosition;
+module.exports.reloadMasterFiles = loadMasterFiles;
