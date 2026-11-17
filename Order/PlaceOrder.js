@@ -142,7 +142,7 @@ const placeOrder = async (req, res) => {
         tag: "XLAGO",
       };
       console.log("orderData", orderData);
-      const accessToken = cred.accesstoken || cred.access_token;
+      const accessToken = cred.auth_token || cred.access_token;
       const apiSecret = cred.apisecretkey || cred.apiSecret;
       if (!accessToken || !apiSecret) {
         throw new Error(
