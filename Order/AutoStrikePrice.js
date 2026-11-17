@@ -249,18 +249,13 @@ const placeOrder = async (req, res) => {
     }
 
     function formatTradingSymbol(symbol, expiry, strikePrice, cepe, exchange) {
-      const day = expiry.slice(0, 2);
       const mon = expiry.slice(2, 5).toUpperCase();
       const year = expiry.slice(7, 9);
 
-      const formattedExpiry = `${day}${mon}${year}`;
-
-      const formattedStrike =
-        exchange === "MCX"
-          ? Number(strikePrice)
-          : Number(strikePrice).toFixed(2);
-
-      return `${symbol}${formattedExpiry}${formattedStrike}${cepe}`;
+      // NSE/BSE monthly option symbols use YYMMM, e.g. NIFTY26NOV23000CE.
+      // The expiry day and a decimal strike suffix are not part of the symbol.
+      const formattedStrike = Number(strikePrice);
+      return `${symbol}${year}${mon}${formattedStrike}${cepe}`;
     }
 
     function getTokenFromLocalJSON(tradingSymbol, exchange) {
@@ -285,7 +280,9 @@ const placeOrder = async (req, res) => {
 
       const records = JSON.parse(fs.readFileSync(filePath, "utf8"));
 
-      const match = records.find((r) => r.pTrdSymbol === tradingSymbol);
+      const match = records.find(
+        (r) => r.tradingsymbol === tradingSymbol || r.pTrdSymbol === tradingSymbol,
+      );
 
       if (!match) {
         throw new Error("No matching instrument found in local scrip master");
@@ -293,7 +290,7 @@ const placeOrder = async (req, res) => {
 
       console.log("match", match);
 
-      return match.pSymbol; // symboltoken
+      return match.token || match.name || match.pSymbol; // symboltoken
     }
 
     // Fetch Jainam token for final ExchangeInstrumentID
