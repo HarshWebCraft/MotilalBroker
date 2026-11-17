@@ -25,6 +25,8 @@
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
     "https": "^1.0.0",
+    "https-proxy-agent": "^5.0.1",
+    "https-proxy-agent": "^5.0.1",
     "ip": "^1.1.5",
     "ip-to-location": "^1.0.1",
     "macaddress": "^0.5.3",

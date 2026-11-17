@@ -18,6 +18,12 @@ const moCredentialsSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    // Outbound IP assigned to this account (for example: "65.255.34.3-3").
+    ip: {
+      type: String,
+      default: "",
+      trim: true,
+    },
   },
   {
     timestamps: true,

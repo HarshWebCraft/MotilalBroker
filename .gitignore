@@ -21,3 +21,7 @@ yarn-debug.log*
 yarn-error.log*
 
 data
+
+config\geonix-proxies.json
+config\server3-proxies.json
+config\server4-proxies.json

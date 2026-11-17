@@ -6,6 +6,7 @@ const axiosRetry = require("axios-retry").default;
 const parse = require("csv-parse/sync");
 
 const https = require("https");
+const { getProxyAgent } = require("../proxyRouter");
 
 const agent = new https.Agent({ keepAlive: true });
 
@@ -143,11 +144,22 @@ const exitPosition = async (req, res) => {
           cred.auth_token,
           cred.apiKey,
           cred.client_id,
+          cred.ip,
         );
+        const proxyRoute = await getProxyAgent(cred.ip);
+        if (proxyRoute) {
+          console.log(
+            `[Motilal] position book ${cred.client_id} via Server ${proxyRoute.serverNo} proxy for ${cred.ip}`,
+          );
+        }
         const response = await axiosInstance.post(
           "https://openapi.motilaloswal.com/rest/book/v1/getposition",
           { clientcode: cred.client_id },
-          { headers, httpsAgent: agent },
+          {
+            headers,
+            httpsAgent: proxyRoute?.agent || agent,
+            proxy: proxyRoute ? false : undefined,
+          },
         );
         return {
           client_id: cred.client_id,

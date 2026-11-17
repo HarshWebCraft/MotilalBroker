@@ -1,10 +1,13 @@
-const getHeaders = (authToken, API_KEY, userID) => ({
+const getHeaders = (authToken, API_KEY, userID, sourceIP = "") => {
+  const clientIP = String(sourceIP || "").split("-")[0].trim() || "1.2.3.4";
+
+  return {
   Accept: "application/json",
   "User-Agent": `MOSL/V.1.1.0`,
   Authorization: authToken,
   ApiKey: API_KEY,
-  ClientLocalIp: "1.2.3.4",
-  ClientPublicIp: "1.2.3.4",
+  ClientLocalIp: clientIP,
+  ClientPublicIp: clientIP,
   MacAddress: "00:00:00:00:00:00",
   SourceId: "WEB",
   vendorinfo: userID,
@@ -16,6 +19,7 @@ const getHeaders = (authToken, API_KEY, userID) => ({
   productversion: process.env.PRODUCT_VERSION || "Your Product Version",
   browsername: process.env.BROWSER_NAME || "Chrome",
   browserversion: process.env.BROWSER_VERSION || "105.0",
-});
+  };
+};
 
 module.exports = getHeaders;

@@ -5,6 +5,7 @@ const axios = require("axios");
 const axiosRetry = require("axios-retry").default;
 const dns = require("dns");
 const https = require("https");
+const { getProxyAgent } = require("../proxyRouter");
 
 const agent = new https.Agent({ keepAlive: true });
 
@@ -115,13 +116,28 @@ const placeOrder = async (req, res) => {
         amoorder,
       };
       console.log("orderData", orderData);
-      const headers = getHeaders(cred.auth_token, cred.apiKey, cred.client_id);
+      const headers = getHeaders(
+        cred.auth_token,
+        cred.apiKey,
+        cred.client_id,
+        cred.ip,
+      );
 
       try {
+        const proxyRoute = await getProxyAgent(cred.ip);
+        if (proxyRoute) {
+          console.log(
+            `[Motilal] placing ${cred.client_id} order via Server ${proxyRoute.serverNo} proxy for ${cred.ip}`,
+          );
+        }
         const response = await axios.post(
           "https://openapi.motilaloswal.com/rest/trans/v1/placeorder",
           orderData,
-          { headers, httpsAgent: agent },
+          {
+            headers,
+            httpsAgent: proxyRoute?.agent || agent,
+            proxy: proxyRoute ? false : undefined,
+          },
         );
         return {
           client_id: cred.client_id,
