@@ -6,6 +6,7 @@ const axiosRetry = require("axios-retry").default;
 const dns = require("dns");
 const https = require("https");
 const { getProxyAgent } = require("../proxyRouter");
+const { getAggressiveLimitPrice } = require("../utils/motilalOrderPricing");
 const agent = new https.Agent({ keepAlive: true });
 
 const fs = require("fs");
@@ -111,10 +112,12 @@ const placeOrder = async (req, res) => {
       const exitPromises = creds.map(async (cred) => {
         try {
           const headers = getHeaders(
-            cred.auth_token,
+            cred.auth_code,
             cred.apiKey,
             cred.client_id,
             cred.ip,
+            cred.apisecretkey,
+            cred.auth_token,
           );
           const proxyRoute = await getProxyAgent(cred.ip);
 
@@ -368,7 +371,7 @@ const placeOrder = async (req, res) => {
       }
 
       const orderData = {
-        clientcode: cred.client_id,
+        clientcode: "",
         exchange,
         // Use the overridden symboltoken
         symboltoken: parseInt(finaltoken),
@@ -382,14 +385,21 @@ const placeOrder = async (req, res) => {
         ordertype,
         price: price ? price : 0,
         amoorder: "N",
+        triggerprice: 0,
+        disclosedquantity: 0,
+        algoid: "",
+        goodtilldate: "",
+        tag: "XLAGO",
       };
 
       console.log("orderData", orderData);
       const headers = getHeaders(
-        cred.auth_token,
+        cred.auth_code,
         cred.apiKey,
         cred.client_id,
         cred.ip,
+        cred.apisecretkey,
+        cred.auth_token,
       );
 
       try {
@@ -399,8 +409,19 @@ const placeOrder = async (req, res) => {
             `[Motilal] auto-strike ${cred.client_id} via Server ${proxyRoute.serverNo} proxy for ${cred.ip}`,
           );
         }
+        if (String(orderData.ordertype).toUpperCase() === "MARKET") {
+          const quote = await getAggressiveLimitPrice({
+            cred,
+            exchange: orderData.exchange,
+            symboltoken: orderData.symboltoken,
+            side: String(orderData.buyorsell).toUpperCase(),
+          });
+          orderData.ordertype = "LIMIT";
+          orderData.price = quote.price;
+          console.log("Converted auto-strike MARKET order to aggressive LIMIT:", quote);
+        }
         const response = await axios.post(
-          "https://openapi.motilaloswal.com/rest/trans/v1/placeorder",
+          "https://openapi.motilaloswal.com/rest/trans/v2/placeorder",
           orderData,
           {
             headers,

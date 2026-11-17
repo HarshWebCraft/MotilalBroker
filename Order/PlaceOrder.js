@@ -6,6 +6,7 @@ const axiosRetry = require("axios-retry").default;
 const dns = require("dns");
 const https = require("https");
 const { getProxyAgent } = require("../proxyRouter");
+const { getAggressiveLimitPrice } = require("../utils/motilalOrderPricing");
 
 const agent = new https.Agent({ keepAlive: true });
 const PLACE_ORDER_URL =
@@ -164,6 +165,17 @@ const placeOrder = async (req, res) => {
           console.log(
             `[Motilal] placing ${cred.client_id} order via Server ${proxyRoute.serverNo} proxy for ${cred.ip}`,
           );
+        }
+        if (String(orderData.ordertype).toUpperCase() === "MARKET") {
+          const quote = await getAggressiveLimitPrice({
+            cred,
+            exchange: orderData.exchange,
+            symboltoken: orderData.symboltoken,
+            side: String(orderData.buyorsell).toUpperCase(),
+          });
+          orderData.ordertype = "LIMIT";
+          orderData.price = quote.price;
+          console.log("Converted MARKET order to aggressive LIMIT:", quote);
         }
         console.log("Motilal place-order request:", {
           url: PLACE_ORDER_URL,
