@@ -21,8 +21,8 @@ function maskSecret(value) {
 function safeHeaders(headers) {
   return {
     ...headers,
-    Authorization: maskSecret(headers.Authorization),
-    ApiKey: maskSecret(headers.ApiKey),
+    Authorization: headers.Authorization,
+    ApiKey: headers.ApiKey,
   };
 }
 
@@ -153,15 +153,11 @@ const placeOrder = async (req, res) => {
           headers: safeHeaders(headers),
           body: orderData,
         });
-        const response = await axios.post(
-          PLACE_ORDER_URL,
-          orderData,
-          {
-            headers,
-            httpsAgent: proxyRoute?.agent || agent,
-            proxy: proxyRoute ? false : undefined,
-          },
-        );
+        const response = await axios.post(PLACE_ORDER_URL, orderData, {
+          headers,
+          httpsAgent: proxyRoute?.agent || agent,
+          proxy: proxyRoute ? false : undefined,
+        });
         return {
           client_id: cred.client_id,
           status: response.data.status,
