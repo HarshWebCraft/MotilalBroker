@@ -7,11 +7,16 @@ const CONFIG_PATHS = {
   3: path.join(__dirname, "config", "server3-proxies.json"),
   4: path.join(__dirname, "config", "server4-proxies.json"),
   5: path.join(__dirname, "config", "geonix-proxies.json"),
+  7: path.join(__dirname, "config", "server7-proxies.json"),
+  8: path.join(__dirname, "config", "server8-proxies.json"),
 };
 const configCache = new Map();
 
 function cleanIP(value) {
-  return String(value || "").trim().split("-")[0].trim();
+  return String(value || "")
+    .trim()
+    .split("-")[0]
+    .trim();
 }
 
 function loadConfig(serverNo) {
@@ -23,10 +28,14 @@ function loadConfig(serverNo) {
   if (!cached || cached.mtimeMs !== stats.mtimeMs) {
     const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
     if (!config.host && serverNo !== "5") {
-      throw new Error(`Server ${serverNo} proxy host is missing: ${configPath}`);
+      throw new Error(
+        `Server ${serverNo} proxy host is missing: ${configPath}`,
+      );
     }
     if (!config.username || !config.password || !config.proxies) {
-      throw new Error(`Server ${serverNo} proxy configuration is incomplete: ${configPath}`);
+      throw new Error(
+        `Server ${serverNo} proxy configuration is incomplete: ${configPath}`,
+      );
     }
     configCache.set(serverNo, { config, mtimeMs: stats.mtimeMs });
   }
@@ -36,7 +45,7 @@ function loadConfig(serverNo) {
 async function getServerNo(sourceIP) {
   const value = String(sourceIP || "").trim();
   const suffix = value.split("-")[1];
-  if (["3", "4", "5"].includes(suffix)) return suffix;
+  if (["3", "4", "5", "7", "8"].includes(suffix)) return suffix;
 
   const cleanSourceIP = cleanIP(value);
   if (!cleanSourceIP) return "";
